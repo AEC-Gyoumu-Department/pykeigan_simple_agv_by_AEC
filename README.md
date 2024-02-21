@@ -10,6 +10,12 @@ This approach will enable the AGV to navigate while considering the positions of
   Thanks, KEIGAN to provide a free API to use your Motors and provide this Simple AGV.
   We hope that our collaboration can serve as inspiration for new products and improvements.
 
+## ADDED
+- Area Sensor
+- Sound Reproduce Capacity
+- Aruco Mapping
+- Emergency Stop Button
+
 # はじめに
 KeiganMotor，Raspberry Pi, USBカメラ または PiCamera, を使用して、USBモバイルバッテリーで動作するライントレーサーAGVを作ることができます。
 
