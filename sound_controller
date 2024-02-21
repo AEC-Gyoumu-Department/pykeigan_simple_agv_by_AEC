@@ -1,3 +1,8 @@
+"""
+Created on February 2024
+@author: Ichikawa Eisei
+"""
+
 import os
 
 class SoundController:
