@@ -2,7 +2,7 @@
 Created on February 2024
 @author: Ichikawa Eisei
 """
-
+from gpiozero import DistanceSensor
 
 class Ultrasonic_sensor:
     def __init__(self, trig_pin, echo_pin):
