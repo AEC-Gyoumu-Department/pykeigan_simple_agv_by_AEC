@@ -1,3 +1,9 @@
+"""
+Created on February 2024
+@author: Ichikawa Eisei
+"""
+
+
 class Ultrasonic_sensor:
     def __init__(self, trig_pin, echo_pin):
         self.sensor = DistanceSensor(echo=echo_pin, trigger=trig_pin, max_distance=4)  # assumindo max_distance de 4 metros
