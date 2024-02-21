@@ -1,7 +1,7 @@
 Simple line tracer AGV by KeiganMotor
 ==============================================
 
-# First of all, by AEC-業務改革室,
+# First of all by AEC-業務改革室
 This project is an iteration of the Keigan Simple AGV. In this version, we will integrate the HC-SR04 sonar sensor to enhance the AGV's object detection capabilities.
 Additionally, we will incorporate a sound module to enable the AGV to emit sound effects corresponding to its actions.
 Utilizing the Aruco Marker's reading capability, we will develop a mapping system (location system) based on these markers.
