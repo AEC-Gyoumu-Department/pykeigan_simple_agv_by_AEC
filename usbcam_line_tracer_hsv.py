@@ -419,6 +419,7 @@ if __name__ == '__main__':
 
     print("Keigan Line Tracer Start !")
 
+    AGV_ID = "DreamySmurf"
     # GPIOをBCM番号で呼ぶことを宣言
     GPIO.setmode(GPIO.BCM) 
 
