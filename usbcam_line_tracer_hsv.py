@@ -115,6 +115,9 @@ CHARGING_TIME_SEC = 10 # 充電ステーションでの待機時間
 #run rpm variable
 run_rpm = RUN_BASE_RPM
 
+#ID to identify this AGV in traffics map
+AGV_ID = "DreamySmurf"
+
 # システムの状態を表す列挙子クラス
 class State(Enum):
     """システムのステート（状態）を表す列挙子
@@ -418,8 +421,7 @@ def calc_frame_rate():
 if __name__ == '__main__':
 
     print("Keigan Line Tracer Start !")
-
-    AGV_ID = "DreamySmurf"
+    
     # GPIOをBCM番号で呼ぶことを宣言
     GPIO.setmode(GPIO.BCM) 
 
