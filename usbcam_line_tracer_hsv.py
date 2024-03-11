@@ -131,6 +131,7 @@ class State(Enum):
     STATE_IDLE = 0 # 待機状態
     STATE_LINE_TRACE = 1 # ライントレーサー
     STATE_DEBUG = 10 # デバッグ用
+    STATE_MOTOR_REINITIALIZE = 20
 
 
 # KeiganMotor 本体のボタンから、システムのステートをセットする
