@@ -526,6 +526,12 @@ if __name__ == '__main__':
                     stopFlag = True
                     img_stop = cv2.aruco.drawDetectedMarkers(roi_ar, corners, ids, (0,255,0))
                     cv2.imwrite("img_stop.jpg",img_stop)
+                elif 50 == ids[0,0]: # id: 50 で TWdを再インスタンスする
+                    #stopFlag = True
+                    #Adionar um BEEP sonoro para identificar que o TWD foi reinstanciado com sucesso
+                    twd = TWD(port_left, port_right, wheel_d = 100.6, tread = 306.5, button_event_cb = motor_event_cb)  # for try purpose
+                    img_stop = cv2.aruco.drawDetectedMarkers(roi_ar, corners, ids, (0,255,0))
+                    cv2.imwrite("img_stop.jpg",img_stop)
 
             # (b) 赤ラインマーカーで停止を行う場合
             red = get_red_moment(img)
