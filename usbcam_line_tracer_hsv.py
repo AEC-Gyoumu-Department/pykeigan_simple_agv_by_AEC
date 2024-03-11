@@ -630,6 +630,9 @@ if __name__ == '__main__':
                 set_state(State.STATE_LINE_TRACE)
             elif key == ord("d"):
                 set_state(State.STATE_DEBUG)
+            elif key == ord("w"):
+                set_state(State.STATE_MOTOR_REINITIALIZE)
+                twd = TWD(port_left, port_right, wheel_d = 100.6, tread = 306.5, button_event_cb = motor_event_cb)  # for try purpose
             elif key == ord("q"):
                 break
 
