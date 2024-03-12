@@ -402,20 +402,6 @@ def aruco_reader(roi_ar):
     cv2.imshow('detectedMakers',roi_ar)
     return corners,ids
 
-# arucoマーカーIDによる判定（未使用）
-def aruco_reader_get_state(corners,ids):
-    ar_state = 0
-    if("0" in str(ids)):
-        ar_state = 0
-        print('0')
-    if("1" in str(ids)):
-        ar_state = 1
-        print('1')
-    if("2" in str(ids)):
-        ar_state = 2
-        print('2')
-    return ar_state
-
 # フレームレートの計算
 def calc_frame_rate():
     global count, max_count, tm, fps
