@@ -558,7 +558,8 @@ if __name__ == '__main__':
                     reset_pid_params()
                     isPausingLinetrace = True # ライントレース一時停止
                     twd.enable() # ラインロストで disable 状態になっている場合がある
-                    twd.free(1) # 停止、タイムアウト0.5秒
+                    twd.free(0.5) # 停止、タイムアウト0.5秒
+                    isResuming = True
                     
                     # その場で 180°旋回する
                     #twd.pivot_turn(20, 180, 10) # TWD初期化時、tread を正確に設定していない場合、ズレる
@@ -572,7 +573,10 @@ if __name__ == '__main__':
 
                     # 以下を有効にすると、緑（白）ボタンを押すまで動作再開しない
                     # set_state(State.STATE_IDLE) 
-
+                elif isResuming:
+                    isPausingLinetrace = False
+                    isResuming = False
+                    
                 elif turnRightFlag:
                     print("Detected Right Turn Marker")
                     x = 0
