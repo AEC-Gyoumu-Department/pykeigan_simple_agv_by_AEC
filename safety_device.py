@@ -12,7 +12,7 @@ class Ultrasonic_sensor:
         return self.sensor.distance * 100  # convertendo de metros para centímetros
 
 
-Class Emergency_Stop:
+class Emergency_Stop:
     def __init__(self, stop_btn_pin):
         self.emergency_btn = stop_btn_pin
         GPIO.setmode(GPIO.BCM)
