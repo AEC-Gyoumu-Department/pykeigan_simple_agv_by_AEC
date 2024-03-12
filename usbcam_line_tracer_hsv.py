@@ -23,12 +23,19 @@ from twd import TWD
 
 from threading_capture import threading_capture
 
+from safety_device  import Ultrasonic_sensor
+
 # ボタン（赤黄緑）
 BUTTON_RED_PIN = 13
 BUTTON_RED_PIN_2 = 6 # ２つ目の赤ボタンを追加
 BUTTON_YELLOW_PIN = 19
 BUTTON_GREEN_PIN = 26
 
+#エリアセンサー　PIN　(HC-SR04 sensor)
+SENSOR1_TRIGGER_PIN =  22
+SENSOR1_ECHO_PIN =  23
+
+ultrasonic_sensor = Ultrasonic_sensor(trig_pin=SENSOR1_TRIGGER_PIN, echo_pin=SENSOR1_ECHO_PIN)
 # USBカメラ
 """
 以下のコマンドで使用できるUSBカメラのリストを取得
@@ -511,6 +518,9 @@ if __name__ == '__main__':
             # (a) Arucoマーカー検知で停止を行う場合
             roi_ar = image[80:240, 0:320] # [80:240, 0:320]
             corners,ids = aruco_reader(roi_ar) #ArUcoマーカー検知
+
+            if ultrasonic_sensor.get_distance() <= 100:
+                stopFlag = True
             
             if ids is not None:
                 #marker_mean_y = corners[0][0][1][1]+corners[0][0][1][1]+corners[0][0][1][1]+corners[0][0][1][1]
