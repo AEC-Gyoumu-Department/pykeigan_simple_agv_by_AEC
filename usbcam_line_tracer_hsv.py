@@ -35,7 +35,9 @@ BUTTON_GREEN_PIN = 26
 SENSOR1_TRIGGER_PIN =  22
 SENSOR1_ECHO_PIN =  23
 
-ultrasonic_sensor = Ultrasonic_sensor(trig_pin=SENSOR1_TRIGGER_PIN, echo_pin=SENSOR1_ECHO_PIN)
+area_sensor = Ultrasonic_sensor(trig_pin=SENSOR1_TRIGGER_PIN, echo_pin=SENSOR1_ECHO_PIN)
+thread = threading.Thread(target=area_sensor.run)
+thread.start()
 # USBカメラ
 """
 以下のコマンドで使用できるUSBカメラのリストを取得
@@ -519,7 +521,7 @@ if __name__ == '__main__':
             roi_ar = image[80:240, 0:320] # [80:240, 0:320]
             corners,ids = aruco_reader(roi_ar) #ArUcoマーカー検知
 
-            if ultrasonic_sensor.get_distance() <= 100:
+            if area_sensor.get_distance() <= 100:
                 stopFlag = True
             
             if ids is not None:
