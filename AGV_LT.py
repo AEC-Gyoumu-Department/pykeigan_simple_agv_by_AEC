@@ -20,10 +20,9 @@ import csv # CSVファイルを取り扱う（読み書き）ライン検知の�
 # KeiganMotor での AGV開発を簡単にするためのライブラリ。メインファイルと同じフォルダに、twd.py を置いて下さい。
 # KeiganMotor KM-1 ファームウェア 2.73B以降必須（未満の場合は twd.py で関数未定義エラーとなる）
 from twd import TWD 
-
 from threading_capture import threading_capture
-
 from safety_device  import Ultrasonic_sensor
+from sound_controller import BeepPlayer
 
 # ボタン（赤黄緑）
 BUTTON_RED_PIN = 13
@@ -124,6 +123,10 @@ CHARGING_TIME_SEC = 10 # 充電ステーションでの待機時間
 #run rpm variable
 run_rpm = RUN_BASE_RPM
 
+# beeper  object
+beeper = BeepPlayer()
+
+
 #ID to identify this AGV in traffics map
 AGV_ID = "DreamySmurf"
 
@@ -216,6 +219,7 @@ def set_state(state: State):
         print("-> State.STATE_IDLE")
         twd.disable()
         twd.led(2, 255, 0, 0)
+        beeper.stop_beep()
     elif state == State.STATE_LINE_TRACE: # 緑
         print("-> State.STATE_LINE_TRACE")    
         t = threading.Thread(target = scheduler)
@@ -546,6 +550,7 @@ if __name__ == '__main__':
                     twd.enable() # ラインロストで disable 状態になっている場合がある
                     twd.free(0.5) # 停止、タイムアウト0.5秒
                     isResuming = True
+                    beeper.play_beep_intercalated(1000,2000,0.5)
                     
                     # その場で 180°旋回する
                     #twd.pivot_turn(20, 180, 10) # TWD初期化時、tread を正確に設定していない場合、ズレる
@@ -562,6 +567,7 @@ if __name__ == '__main__':
                 elif isResuming:
                     isPausingLinetrace = False
                     isResuming = False
+                    beeper.play_beep_intermittent(1000, 0.5, 0.5)
                     
                 elif turnRightFlag:
                     print("Detected Right Turn Marker")
@@ -590,6 +596,7 @@ if __name__ == '__main__':
                     lineArea = blue[2]
                     lineArea_u = blue_u[2]
                     if isLineExist:
+                        beeper.play_beep_intermittent(1000, 0.5, 0.5)
                         lost_count = 0 # ラインロストのカウントをリセット
                         lost_total_count = 0 # ライントータルロストのカウントをリセット
                         # print(lineArea_u)
