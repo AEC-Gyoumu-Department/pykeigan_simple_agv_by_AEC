@@ -36,14 +36,12 @@ class BeepPlayer:
     def play_beep_intercalated(self, frequency1, frequency2, duration, total_time):
         def play():
             start_time = time.time()
-            while time.time() - start_time < total_time and self.playing:
+            while self.playing:
                 self.beep(frequency1, duration)
                 time.sleep(duration)
-                if time.time() - start_time + duration >= total_time or not self.playing:
-                    break
                 self.beep(frequency2, duration)
                 time.sleep(duration)
-
+                
         self.thread = threading.Thread(target=play)
         self.thread.start()
 
@@ -53,8 +51,8 @@ class BeepPlayer:
             self.thread.join()
 
 # Exemplo de uso
-beeper = BeepPlayer()
-beeper.play_beep_intermittent(1000, 0.5, 0.5)  # Reproduz beeps de 1000 Hz por 0.5 segundos intercalados com 0.5 segundos de intervalo, indefinidamente
+#beeper = BeepPlayer()
+#beeper.play_beep_intermittent(1000, 0.5, 0.5)  # Reproduz beeps de 1000 Hz por 0.5 segundos intercalados com 0.5 segundos de intervalo, indefinidamente
 
 # Para parar a reprodução:
 # beeper.stop_beep_intermittent()
