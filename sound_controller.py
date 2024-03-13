@@ -31,7 +31,7 @@ class BeepPlayer:
         self.thread = threading.Thread(target=play)
         self.thread.start()
 
-    def play_beep_intercalated(self, frequency1, frequency2, duration, total_time):
+    def play_beep_intercalated(self, frequency1, frequency2, duration):
         def play():
             if self.current_beep != "intercalated":
                 self.current_beep = "intercalated"
