@@ -7,6 +7,7 @@ class BeepPlayer:
     def __init__(self):
         self.playing = False
         self.thread = None
+        self.current_beep = ""
 
     def beep(self, frequency, duration):
         # Cria um array numpy para representar o som de um beep
@@ -20,28 +21,32 @@ class BeepPlayer:
 
     def play_beep_intermittent(self, frequency, duration, interval):
         def play():
-            self.playing = True
-            while self.playing:
-                self.beep(frequency, duration)
-                time.sleep(interval)
+            if self.current_beep != "intermittent":
+                self.current_beep = "intermittent"
+                self.playing = True
+                while self.playing:
+                    self.beep(frequency, duration)
+                    time.sleep(interval)
 
         self.thread = threading.Thread(target=play)
         self.thread.start()
 
     def play_beep_intercalated(self, frequency1, frequency2, duration, total_time):
         def play():
-            start_time = time.time()
             while self.playing:
-                self.beep(frequency1, duration)
-                time.sleep(duration)
-                self.beep(frequency2, duration)
-                time.sleep(duration)
+                if self.current_beep != "intercalated":
+                    self.current_beep = "intercalated"
+                    self.beep(frequency1, duration)
+                    time.sleep(duration)
+                    self.beep(frequency2, duration)
+                    time.sleep(duration)
                 
         self.thread = threading.Thread(target=play)
         self.thread.start()
 
     def stop_beep(self):
         self.playing = False
+        self.current_beep = ""
         if self.thread is not None:
             self.thread.join()
 
