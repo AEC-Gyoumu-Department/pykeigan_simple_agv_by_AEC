@@ -35,6 +35,7 @@ class BeepPlayer:
         def play():
             if self.current_beep != "intercalated":
                 self.current_beep = "intercalated"
+                self.playing = True
                 while self.playing and self.current_beep == "intercalated" :
                     self.beep(frequency1, duration)
                     time.sleep(duration)
