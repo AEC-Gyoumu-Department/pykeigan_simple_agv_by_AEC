@@ -24,7 +24,7 @@ class BeepPlayer:
             if self.current_beep != "intermittent":
                 self.current_beep = "intermittent"
                 self.playing = True
-                while self.playing:
+                while self.playingand self.current_beep == "intermittent":
                     self.beep(frequency, duration)
                     time.sleep(interval)
 
@@ -33,9 +33,9 @@ class BeepPlayer:
 
     def play_beep_intercalated(self, frequency1, frequency2, duration, total_time):
         def play():
-            while self.playing:
-                if self.current_beep != "intercalated":
-                    self.current_beep = "intercalated"
+            if self.current_beep != "intercalated":
+                self.current_beep = "intercalated"
+                while self.playing and self.current_beep == "intercalated" :
                     self.beep(frequency1, duration)
                     time.sleep(duration)
                     self.beep(frequency2, duration)
