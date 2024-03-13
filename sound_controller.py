@@ -28,11 +28,6 @@ class BeepPlayer:
         self.thread = threading.Thread(target=play)
         self.thread.start()
 
-    def stop_beep_intermittent(self):
-        self.playing = False
-        if self.thread is not None:
-            self.thread.join()
-
     def play_beep_intercalated(self, frequency1, frequency2, duration, total_time):
         def play():
             start_time = time.time()
@@ -45,7 +40,7 @@ class BeepPlayer:
         self.thread = threading.Thread(target=play)
         self.thread.start()
 
-    def stop_beep_intercalated(self):
+    def stop_beep(self):
         self.playing = False
         if self.thread is not None:
             self.thread.join()
