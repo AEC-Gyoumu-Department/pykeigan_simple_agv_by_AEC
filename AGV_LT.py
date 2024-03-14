@@ -22,7 +22,7 @@ import csv # CSVファイルを取り扱う（読み書き）ライン検知の�
 from twd import TWD 
 from threading_capture import threading_capture
 from safety_device  import Ultrasonic_sensor
-from sound_controller import BeepPlayer
+from sound_controller import SoundPlayer
 
 # ボタン（赤黄緑）
 BUTTON_RED_PIN = 13
@@ -124,7 +124,7 @@ CHARGING_TIME_SEC = 10 # 充電ステーションでの待機時間
 run_rpm = RUN_BASE_RPM
 
 # beeper  object
-beeper = BeepPlayer()
+player = SoundPlayer("caminho/para/o/arquivo.mp3")
 
 
 #ID to identify this AGV in traffics map
@@ -219,7 +219,7 @@ def set_state(state: State):
         print("-> State.STATE_IDLE")
         twd.disable()
         twd.led(2, 255, 0, 0)
-        beeper.stop_beep()
+        player.set_no_sound()
     elif state == State.STATE_LINE_TRACE: # 緑
         print("-> State.STATE_LINE_TRACE")    
         t = threading.Thread(target = scheduler)
@@ -227,12 +227,14 @@ def set_state(state: State):
         twd.enable()
         #twd.run(10, 10)
         twd.led(2, 0, 255, 0)
+        player.set_normal_move_sound()
     elif state == State.STATE_DEBUG: # ログだけ流れる。台車は動かない。水色
         print("-> State.STATE_DEBUG")
         t = threading.Thread(target = scheduler)
         t.start()
         twd.disable()
         twd.led(2, 0, 255, 255)
+        player.set_normal_move_sound()
 
 
 # ラインの位置から左右のモーターに与える回転速度rpmを計算する
