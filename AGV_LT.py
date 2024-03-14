@@ -123,7 +123,7 @@ CHARGING_TIME_SEC = 10 # 充電ステーションでの待機時間
 #run rpm variable
 run_rpm = RUN_BASE_RPM
 
-# beeper  object
+# player  object
 player = SoundPlayer("caminho/para/o/arquivo.mp3")
 
 
@@ -552,7 +552,7 @@ if __name__ == '__main__':
                     twd.enable() # ラインロストで disable 状態になっている場合がある
                     twd.free(0.5) # 停止、タイムアウト0.5秒
                     isResuming = True
-                    beeper.play_beep_intercalated(1000,2000,0.5)
+                    player.set_blocked_move_sound()
                     
                     # その場で 180°旋回する
                     #twd.pivot_turn(20, 180, 10) # TWD初期化時、tread を正確に設定していない場合、ズレる
@@ -569,7 +569,7 @@ if __name__ == '__main__':
                 elif isResuming:
                     isPausingLinetrace = False
                     isResuming = False
-                    beeper.play_beep_intermittent(1000, 0.5, 0.5)
+                    player.set_normal_move_sound()
                     
                 elif turnRightFlag:
                     print("Detected Right Turn Marker")
@@ -598,7 +598,6 @@ if __name__ == '__main__':
                     lineArea = blue[2]
                     lineArea_u = blue_u[2]
                     if isLineExist:
-                        beeper.play_beep_intermittent(1000, 0.5, 0.5)
                         lost_count = 0 # ラインロストのカウントをリセット
                         lost_total_count = 0 # ライントータルロストのカウントをリセット
                         # print(lineArea_u)
