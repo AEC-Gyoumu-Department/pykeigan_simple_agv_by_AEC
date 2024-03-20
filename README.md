@@ -9,7 +9,7 @@ This approach will enable the AGV to navigate while considering the positions of
 
   Thanks, KEIGAN to provide a free API to use your Motors and provide this Simple AGV.
   We hope that our collaboration can serve as inspiration for new products and improvements.
-
+  ### Load test using 1 motor
   ![モーター負荷容量テスト](/img/02-ミニプロトタイプ-1_Motor_02.gif) 
 
 ## ADDED
