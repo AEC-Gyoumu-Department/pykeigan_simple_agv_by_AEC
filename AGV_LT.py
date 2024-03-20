@@ -656,7 +656,7 @@ if __name__ == '__main__':
                 set_state(State.STATE_IDLE)
                 file_path = filedialog.askopenfilename()
             elif key == ord("h"):
-                file_path = filedialog.asksaveasfilename(defaultextension=".png")
+                file_path = filedialog.asksaveasfilename(defaultextension=".yaml")
             elif key == ord("q"):
                 break
 
