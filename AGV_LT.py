@@ -23,6 +23,8 @@ from twd import TWD
 from threading_capture import threading_capture
 from safety_device  import Ultrasonic_sensor
 from sound_controller import SoundPlayer
+import tkinter as tk
+from tkinter import filedialog
 
 # ボタン（赤黄緑）
 BUTTON_RED_PIN = 13
@@ -650,6 +652,11 @@ if __name__ == '__main__':
             elif key == ord("w"):
                 set_state(State.STATE_MOTOR_REINITIALIZE)
                 twd = TWD(port_left, port_right, wheel_d = 100.6, tread = 306.5, button_event_cb = motor_event_cb)  # for try purpose
+            elif key == ord("l"):
+                set_state(State.STATE_IDLE)
+                file_path = filedialog.askopenfilename()
+            elif key == ord("h"):
+                file_path = filedialog.asksaveasfilename(defaultextension=".png")
             elif key == ord("q"):
                 break
 
