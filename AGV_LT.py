@@ -375,7 +375,7 @@ def get_red_moment(hsv):
 
 # 青色の重心の検出
 # 存在する場合 true と、重心座標と、面積を返す
-def get_blue_moment(hsv):
+def get_color_moment(hsv):
     # 青色のHSVの値域1
     h_min = cv2.getTrackbarPos("(Trace)_H_min", "Trace")
     h_max = cv2.getTrackbarPos("(Trace)_H_max", "Trace")
@@ -446,7 +446,7 @@ def calc_frame_rate():
     return fps
 
 if __name__ == '__main__':
-    print("Keigan Line Tracer Start !")
+    print("青木電器 AGV START!")
 
     # GPIOをBCM番号で呼ぶことを宣言
     GPIO.setmode(GPIO.BCM)
@@ -525,8 +525,8 @@ if __name__ == '__main__':
             img_u = cv2.medianBlur(hsvImg_u, 5)
 
             # フレームレートを表示する (frame per seconds)
-            cv2.putText(hsvImg, 'FPS: {:.2f}'.format(calc_frame_rate()),
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), thickness=2)
+            tfont = cv2.FONT_HERSHEY_SIMPLEX
+            cv2.putText(hsvImg, 'FPS: {:.2f}'.format(calc_frame_rate()),(10, 30), tfont, 1.0, (0, 255, 0), thickness=2)
 
             # ライントレース中の動作フラグ
             actionFlag = "停止"  # 停止
@@ -542,7 +542,6 @@ if __name__ == '__main__':
                     actionFlag = "停止"
                 elif 1 == ids[0, 0]:  # モーターを再インスタンスマーク
                     actionFlag = "再インスタンス"
-                    twd = TWD(port_left, port_right, wheel_d=100.6, tread=306.5, button_event_cb=motor_event_cb)
                 elif 10 == ids[0, 0]:  # 左折マーク
                     actionFlag = "左折"
                 elif 30 == ids[0, 0]:  # 右折マーク
@@ -551,8 +550,10 @@ if __name__ == '__main__':
                     actionFlag = "回転180"
                 elif 91 == ids[0, 0]:  # 回転270度マーク
                     actionFlag = "回転270"
+                elif 100 == ids[0, 0]:
+                    actionFlag = "30秒待ち逆動き"
 
-            if area_sensor.get_distance() <= 100:
+            if area_sensor.get_distance() <= 20:
                 actionFlag = "停止"
 
             if cur_state == State.STATE_LINE_TRACE or cur_state == State.STATE_DEBUG:
@@ -563,66 +564,61 @@ if __name__ == '__main__':
                     isPausingLinetrace = True  # ライントレース一時停止
                     twd.enable()  # ラインロストで disable 状態になっている場合がある
                     twd.free(0.5)  # 停止、タイムアウト0.5秒
-                    isResuming = True
+                    actionFlag = "isResuming"
                     player.set_blocked_move_sound()
                     run_rpm = RUN_BASE_RPM  # 速度を元に戻す
 
-                elif isResuming:
+                elif actionFlag == "isResuming":
                     isPausingLinetrace = False
                     isResuming = False
                     player.set_normal_move_sound()
+                    actionFlag = ""
 
                 elif actionFlag == "左折":
-                    print("Detected Right Turn Marker")
+                    print("Detected Left Turn Marker")
                     x = 0
                     eI = 0
-                    isPausingLinetrace = True  # ライントレース停止
+                    isPausingLinetrace = False  # ライントレース停止
                     twd.enable()  # ラインロストで disable 状態になっている場合がある
                     twd.free(0.1)  # 停止,タイムアウト0.5秒
                     twd.move_straight(20, 380 * AGV_direction, 4)  # 直進。マーカー位置によって調整すること。
                     twd.pivot_turn(20, -90 * AGV_direction, 3)  # 90°回転。TWD初期化時、tread を正確に設定していない場合、ズレる。
                     twd.stop(0.1)
+                    actionFlag = ""
 
-                elif actionFlag:
+                elif actionFlag == "右折":
                     print("Detected Right Turn Marker")
                     x = 0
                     eI = 0
-                    isPausingLinetrace = True  # ライントレース停止
+                    isPausingLinetrace = False  # ライントレース停止
                     twd.enable()  # ラインロストで disable 状態になっている場合がある
                     twd.free(0.1)  # 停止,タイムアウト0.5秒
                     twd.move_straight(20, 380 * AGV_direction, 4)  # 直進。マーカー位置によって調整すること。
                     twd.pivot_turn(20, 90 * AGV_direction, 3)  # 90°回転。TWD初期化時、tread を正確に設定していない場合、ズレる。
                     twd.stop(0.1)
+                    actionFlag = ""
 
-                elif actionFlag:
+                elif actionFlag == "30秒待ち逆動き":
                     # Do load Action Here
-                    pass
+                    print("30秒待ち逆動き")
+                    reset_pid_params()
+                    isPausingLinetrace = True  # ライントレース一時停止
+                    twd.enable()  # ラインロストで disable 状態になっている場合がある
+                    twd.free(0.5)  # 停止、タイムアウト0.5秒
+                    actionFlag = ""
+                    player.set_blocked_move_sound()
+                    AGV_direction = AGV_direction * -1
 
-                elif actionFlag:
-                    # Do unload Action Here
-                    pass
-
-                elif actionFlag:
-                    # Do clockwise  Action Here
-                    isPausingLinetrace = True
-                    twd.enable()
-                    twd.free(0.1)
-                    twd.move_straight(20, 380 * AGV_direction, 4)
-                    twd.pivot_turn(20, 270 * AGV_direction, 5)
-                    AGV_direction = 1
-                    pass
-
-                elif actionFlag:
-                    # Do counterclockwise  Action Here
-                    pass
+                elif actionFlag == "再インスタンス":
+                    twd = TWD(port_left, port_right, wheel_d=100.6, tread=306.5, button_event_cb=motor_event_cb)
 
                 else:  # Follow the Blue Brick Road (Line)
-                    blue = get_blue_moment(img)
-                    blue_u = get_blue_moment(img_u)
+                    color = get_color_moment(img)
+                    color_u = get_color_moment(img_u)
                     isLineExist = False  # ラインが存在する場合、True
-                    isLineExist = blue[0]
-                    lineArea = blue[2]
-                    lineArea_u = blue_u[2]
+                    isLineExist = color[0]
+                    lineArea = color[2]
+                    lineArea_u = color_u[2]
 
                     if isLineExist:
                         lost_count = 0  # ラインロストのカウントをリセット
@@ -636,7 +632,7 @@ if __name__ == '__main__':
                             else:
                                 run_rpm = RUN_BASE_RPM
                             isPausingLinetrace = False
-                            x = blue[1][0] - 160  # ラインのx位置を更新
+                            x = color[1][0] - 160  # ラインのx位置を更新
                             twd.enable()
                     else:
                         lost_count += 1  # ロストしたカウントアップ
