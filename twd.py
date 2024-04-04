@@ -29,8 +29,8 @@ class TWD():
     def __init__(self, port_left, port_right, safe_time = 1, safe_option = 1, wheel_d = 100, tread = 400, button_event_cb = None):
         self.left = usbcontroller.USBController(port_left,False)
         self.right = usbcontroller.USBController(port_right,False)
-        self.left.enable_check_sum(True)
-        self.right.enable_check_sum(True)
+        #self.left.enable_check_sum(True)
+        #self.right.enable_check_sum(True)
         self.safe_time = safe_time
         self.safe_option = safe_option
         self.curve(0)
@@ -48,11 +48,12 @@ class TWD():
         self.right.disable_action()
 
     def button_setting(self, button_event_cb): # KeiganMotor のボタンを有効化する
-        self.left.set_button_setting(30)
-        self.right.set_button_setting(30)
+        pass
+        #self.left.set_button_setting(30)
+        #self.right.set_button_setting(30)
         # KeiganMotor 本体ボタンが押されたときに呼ばれるコールバック関数を登録する
-        self.left.on_motor_event_cb = button_event_cb
-        self.right.on_motor_event_cb = button_event_cb
+        #self.left.on_motor_event_cb = button_event_cb
+        #self.right.on_motor_event_cb = button_event_cb
 
     def led(self, state, r, g, b): # LEDの色変更 state = 1 が点灯, 0 は消灯, 2 は点滅
         self.left.set_led(state, r, g, b)
@@ -111,9 +112,11 @@ class TWD():
 
     def safe_setting(self, isEnabled): # モーションントロールの台形速度カーブを使わない(0)
         if isEnabled:
+            pass
             # 第1引数が True safe_time[s]以内に次の動作命令が来ないと、停止する 0:free,1:disable,2:stop, 3:position固定
-            self.left.set_safe_run_settings(True, self.safe_time * 1000, self.safe_option) 
-            self.right.set_safe_run_settings(True, self.safe_time * 1000, self.safe_option) 
+            #self.left.set_safe_run_settings(True, self.safe_time * 1000, self.safe_option) 
+            #self.right.set_safe_run_settings(True, self.safe_time * 1000, self.safe_option) 
         else:
-            self.left.set_safe_run_settings(False, self.safe_time * 1000, self.safe_option)
-            self.right.set_safe_run_settings(False, self.safe_time * 1000, self.safe_option)
+            pass
+            #self.left.set_safe_run_settings(False, self.safe_time * 1000, self.safe_option)
+            #self.right.set_safe_run_settings(False, self.safe_time * 1000, self.safe_option)
