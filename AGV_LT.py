@@ -10,28 +10,25 @@ Modified on Mar 01 2024
 # import the necessary packages
 import time
 import threading  # タイマー用 SignalライブラリがOpenCVと一緒に使えないため
-
-import cv2  # OpenCV
-import numpy as np  # numpy 計算が得意
-from enum import Enum  # 列挙子
-import RPi.GPIO as GPIO  # t
-import csv  # CSVファイルを取り扱う（読み書き）ライン検知のキャリブレーションデータを作製
-
-# KeiganMotor での AGV開発を簡単にするためのライブラリ。メインファイルと同じフォルダに、twd.py を置いて下さい。
-# KeiganMotor KM-1 ファームウェア 2.73B以降必須（未満の場合は twd.py で関数未定義エラーとなる）
-from twd import TWD
+import cv2  
+import numpy as np 
+from enum import Enum 
+import RPi.GPIO as GPIO  
+import csv 
+from pykeigan import usbcontroller
+from pykeigan import utils
 from threading_capture import threading_capture
 from safety_device import Ultrasonic_sensor
 from sound_controller import SoundPlayer
 import tkinter as tk
 from tkinter import filedialog
-
+import datetime
+import subprocess
 # ボタン（赤黄緑）
 BUTTON_RED_PIN = 13
 BUTTON_RED_PIN_2 = 20  # ２つ目の赤ボタンを追加
 BUTTON_YELLOW_PIN = 19
 BUTTON_GREEN_PIN = 26
-BUTTON_REAR_PIN = 20
 
 # エリアセンサー　PIN　(HC-SR04 sensor)
 SENSOR1_TRIGGER_PIN = 22
@@ -47,13 +44,12 @@ $ v4l2-ctl --list-devices
 インストール必要
 $ sudo apt-get install v4l-utils
 """
-
 #
 CAM_U1_FRONT_ID = 0  # USBcam1 /dev/video0
 CAM_U1_REAR_ID = 2   # USBcam2 /dev/video1
-CAM_WIDTH = 320
-CAM_HEIGHT = 240
-CAM_FPS = 10
+CAM_WIDTH = 640
+CAM_HEIGHT = 360
+CAM_FPS = 30
 
 # フレームレート計算用
 tm = cv2.TickMeter()
@@ -62,8 +58,15 @@ tm.start()
 count = 0
 max_count = 10
 fps = 0
-print("Debug1")
+#Set disable auto exposure time and set that to 400
+subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=exposure_auto=1", shell=True)
+subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=exposure_absolute=400", shell=True)
+
+subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=white_balance_temperature_auto=0", shell=True)
+subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=white_balance_temperature=4000", shell=True)
+
 camera_front = cv2.VideoCapture(CAM_U1_FRONT_ID)
+
 camera_front.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
 camera_front.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
 camera_front.set(cv2.CAP_PROP_FPS, CAM_FPS)
@@ -78,8 +81,8 @@ camera_rear.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
 camera_rear.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
 camera_rear.set(cv2.CAP_PROP_FPS, CAM_FPS)
 # camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('H', '2', '6', '4'));
-#camera_rear.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'));
-#camera_rear.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+camera_rear.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'));
+camera_rear.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 capture_rear = threading_capture(camera_rear)
 capture_rear.start()
 time.sleep(0.5)  # カメラのウォームアップ時間
@@ -94,8 +97,10 @@ LINE_CROSS_PASS_AREA_THRESHOLD = 20000 / 4  # ラインを横切った場合に�
 LINE_UPPER_AREA_THRESHOLD = 5500 / 4
 STOP_MARKER_AREA_THRESHOLD = 20000 / 4  # 停止テープマーカーを検知するための面積の閾値（※テープ, arucoマーカーではない）
 
-RUN_CMD_INTERVAL = 0.05  # 0.1秒ごとに処理を行う
+RUN_CMD_INTERVAL = 0.1  # 0.1秒ごとに処理を行う
 RUN_BASE_RPM = 300
+MOTOR_L_BASE_SPEED = 180
+MOTOR_R_BASE_SPEED = -300
 RUN_LOWER_RPM = 15
 STOP_AFTER_RPM = 10
 STOP_AFTER_RPM1 = 5
@@ -130,7 +135,6 @@ steer_d = 0  # 微分
 steer_load_p = 0.80  # 比例
 steer_load_i = 0.5  # 積分
 steer_load_d = 0  # 微分
-eI = 0  # 前回の偏差の積分値を保存しておく
 x = 0  # ライン位置
 x_old = 0  # ラインの前回の位置を保存しておく
 CHARGING_TIME_SEC = 10  # 充電ステーションでの待機時間
@@ -169,137 +173,102 @@ def set_state_by_button(event):
             set_state(State.STATE_IDLE)
         elif event['number'] == 3:
             set_state(State.STATE_LINE_TRACE)
+            
+def calculate_speed_right(max_speed,image_width, object_center):
+    # Calculate the distance from the object center to the image center
+    image_center_x = image_width / 2
+    distance_from_center = object_center - image_center_x
+    # If the object's center is outside the image, the speed is zero
+    if object_center <= 0 or object_center >= image_width:
+        return 0
+    # Calculate the speed based on the distance from the image center
+    # If the object moves to the left and crosses the image center, the speed is 300
+    if distance_from_center < 0:
+        return max_speed
+    # Adjust the reduction factor as needed to achieve the desired reduction
+    reduction_factor = max_speed / image_center_x
+    speed = max_speed - (distance_from_center * reduction_factor)
+    return speed
 
-        # KeiganMotor 本体のボタンが押されたときのコールバック
+def calculate_speed_left(max_speed,image_width, object_center):
+    # Calculate the distance from the object center to the image center
+    image_center_x = image_width / 2
+    distance_from_center =   image_center_x  - object_center
+    # If the object's center is outside the image, the speed is zero
+    if object_center <= 0 or object_center >= image_width:
+        return 0
+    # Calculate the speed based on the distance from the image center
+    # If the object moves to the left and crosses the image center, the speed is 300
+    if distance_from_center < 0:
+        return max_speed
+    # Adjust the reduction factor as needed to achieve the desired reduction
+    reduction_factor = max_speed / image_center_x
+    speed = max_speed - (distance_from_center * reduction_factor)
+    return speed
+
+def calculate_speed(max_speed,image_width, object_center):
+    # Calculate the relative position of the object's center compared to the image center
+    image_center_x = image_width / 2
+    distance_from_center = object_center - image_center_x
+    # If the object's center is outside the image, the speed is zero
+    if object_center <= 0 or object_center >= image_width:
+        return 0
+    # Calculate the speed based on the object's center position
+    # Adjust the reduction factor as needed to achieve the desired reduction
+    reduction_factor = max_speed / image_center_x
+    speed = max_speed - (abs(distance_from_center) * reduction_factor)
+    return speed
 
 def motor_event_cb(event):
     # print("event")
     set_state_by_button(event)
 
-
-# KeiganMotor デバイスアドレス定義
 """
-以下の２通りの方法がある
-（１）特定のUSBポート番号を、特定のデバイスアドレスで固定する
-（２）KeiganMotor固有のデバイスアドレスを使用する
-    ターミナルで
-        $ls /dev/serial/by-id/
-    で表示されるデバイスアドレス（デバイスファイル）を記録する
-    usb-FTDI_FT230X_Basic_UART_DM00LSSA-if00-port0
-
-（２）KeiganMotor固有のデバイスアドレスを使用する場合
-
-デバイスアドレス（ポート）は固有IDで指定する
-----------------------
-モーターへの接続
-----------------------
-    モーターのデバイスファイル指定について
-        "/dev/ttyUSB0"で表示されるデバイス名での接続は、複数のモーターを接続した場合に変わる可能性がある。
-        複数のモーターがある場合で、モーターを特定して接続する場合は "$ls /dev/serial/by-id/" で表示されるデバイスを使用する。
-            ex)/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00LSSA-if00-port0
+ターミナルで $ls /dev/serial/by-id/ 
+で表示されるデバイスアドレス（デバイスファイル）を記録する
+usb-FTDI_FT230X_Basic_UART_DM00LSSA-if00-port0
 """
-from pykeigan import usbcontroller
 
 # KeiganMotor デバイスアドレス（上記参照）
 port_left = '/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00KX3V-if00-port0'
 port_right = '/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00KNUU-if00-port0'
 
-# 2輪台車 wheel_d: 車輪直径[mm], tread: トレッド幅 = 車輪センター間の距離[mm]
-# 特に トレッド幅については、実際と合致していない場合、その場旋回で角度のズレが生じる
-
-twd = TWD(port_left, port_right, wheel_d=100, tread=250, button_event_cb=motor_event_cb)
+motor_left = usbcontroller.USBController(port_left)
+motor_right = usbcontroller.USBController(port_right)
+motor_left.set_curve_type(0)
+motor_right.set_curve_type(0)
 
 cur_state = State.STATE_IDLE  # システムの現在の状態
 
-# (ア) 上部に搬送ローラーを取り付ける場合
-# port_roller='/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00KHNL-if00-port0'
-# dev=usbcontroller.USBController(port_roller,False)
-#
-#
-# def do_taskset():
-#     dev.disable_action()
-#     dev.start_doing_taskset(0, 1) # index, repeating
 
 def set_state(state: State):
     """システムのステートをセットする
-
     同時に、モーターのLEDをステートに応じて色変更する
-
     Args:
         state (State): ステート（状態）
     """
-    global cur_state, eI, actionFlag # グローバル変数: これがないと参照不可能
-    # print("in set_state old:", str(cur_state), "new:", str(state))
+    global cur_state, actionFlag, motor_left, motor_right
     cur_state = state
-    eI = 0
 
-    if state == State.STATE_IDLE:  # 赤
+    if state == State.STATE_IDLE:
         print("-> State.STATE_IDLE")
         actionFlag = "停止"
-        twd.disable()
-        twd.led(2, 255, 0, 0)
+        motor_left.disable_action()
+        motor_right.disable_action()
+        motor_left.set_led(2, 255, 0, 0)
+        motor_right.set_led(2, 255, 0, 0)
         player.set_no_sound()
-    elif state == State.STATE_LINE_TRACE:  # 緑
+    elif state == State.STATE_LINE_TRACE:
         print("-> State.STATE_LINE_TRACE")
+        motor_left.enable_action()
+        motor_right.enable_action()
+        motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
+        motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED )) 
+        t = threading.Thread(target=scheduler)
+        t.start()
+        player.set_normal_move_sound()
         actionFlag = ""
-        t = threading.Thread(target=scheduler)
-        t.start()
-        twd.enable()
-        # twd.run(10, 10)
-        twd.led(2, 0, 255, 0)
-        player.set_normal_move_sound()
-    elif state == State.STATE_DEBUG:  # ログだけ流れる。台車は動かない。水色
-        print("-> State.STATE_DEBUG")
-        t = threading.Thread(target=scheduler)
-        t.start()
-        twd.disable()
-        twd.led(2, 0, 255, 255)
-        player.set_normal_move_sound()
-
-
-# ラインの位置から左右のモーターに与える回転速度rpmを計算する
-def pid_controller():
-    global steer_p, steer_i, steer_d
-    global steer_load_p, steer_load_i, steer_load_d
-    global eI, x, x_old
-
-    # トラックバーの値を取る
-    steer_p = cv2.getTrackbarPos("Gain_P", "Main") / 100
-    steer_i = cv2.getTrackbarPos("Gain_I", "Main") / 100
-    steer_load_p = cv2.getTrackbarPos("Gain_Load_P", "Main") / 100
-    steer_load_i = cv2.getTrackbarPos("Gain_Load_I", "Main") / 100
-
-    # 負荷有無によりPIDゲインを変更する（未使用）
-    if hasPayload:
-        gain_p = steer_load_p
-        gain_i = steer_load_i
-        gain_d = steer_load_d
-    else:
-        gain_p = steer_p
-        gain_i = steer_i
-        gain_d = steer_d
-
-    eI = eI + RUN_CMD_INTERVAL * x  # 偏差 積分
-    eD = (x - x_old) / RUN_CMD_INTERVAL  # 偏差 微分
-    delta_v = gain_p * x + gain_i * eI + gain_d * eD
-
-    # アンチワインドアップ
-    if delta_v > DELTA_MAX:
-        eI -= (delta_v - DELTA_MAX) / gain_i
-        if eI < 0: eI = 0
-        delta_v = DELTA_MAX
-    elif delta_v < - DELTA_MAX:
-        eI -= (delta_v + DELTA_MAX) / gain_i
-        if eI > 0:
-            eI = 0
-        delta_v = - DELTA_MAX
-
-    x_old = x
-    rpm = (run_rpm + delta_v, run_rpm - delta_v)
-    # print("x =", x, ", rpm =", rpm)
-    return rpm
-
-
+        
 # 赤黄緑ボタンを押したときのコールバック関数
 def rear_callback(gpio_pin):
     global AGV_direction
@@ -344,37 +313,15 @@ def get_moment(mask, threshold):
         # 面積最大のラベル
         max_label = np.argmax(stats[:, 4])
         area = stats[max_label][4]
+        #print("get moment Area:",area)
+        x1, y1 = int(center[max_label][0]), int(center[max_label][1])
+        #print("X1",x1)
         if area > threshold:
-            # print("area: ", area)
             x1, y1 = int(center[max_label][0]), int(center[max_label][1])
             cv2.circle(mask, (x1, y1), 4, 100, 2, 4)
             isExist = True
-    
+    cv2.imshow("Trace", mask)
     return isExist, (x1, y1), area
-
-
-# 赤色の重心の検出
-# 存在する場合 true と、重心座標と、面積を返す
-def get_red_moment(hsv):
-    # 赤色のHSVの値域1
-    h_max_low = cv2.getTrackbarPos("(Red)_H_max_low", "Red")
-    s_min = cv2.getTrackbarPos("(Red)_S_min", "Red")
-    v_min = cv2.getTrackbarPos("(Red)_V_min", "Red")
-    hsv_min = np.array([0, s_min, v_min])
-    hsv_max = np.array([h_max_low, 255, 255])
-    mask1 = cv2.inRange(hsv, hsv_min, hsv_max)
-
-    # 赤色のHSVの値域2
-    h_min_high = cv2.getTrackbarPos("(Red)_H_min_high", "Red")
-    hsv_min = np.array([h_min_high, s_min, v_min])
-    hsv_max = np.array([179, 255, 255])
-    mask2 = cv2.inRange(hsv, hsv_min, hsv_max)
-
-    # 赤色領域のマスク
-    mask = mask1 + mask2
-    cv2.imshow("Red", mask)
-    return get_moment(mask, STOP_MARKER_AREA_THRESHOLD)
-
 
 # 青色の重心の検出
 # 存在する場合 true と、重心座標と、面積を返す
@@ -384,20 +331,15 @@ def get_color_moment(roi_img):
     if line_color == "black":
         # Converter para escala de cinza
         imagem_cinza = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
-
         # Limiarização
-        _, imagem_binaria = cv2.threshold(imagem_cinza, 127, 255, cv2.THRESH_BINARY)
-
+        _, imagem_binaria = cv2.threshold(imagem_cinza, 10, 255, cv2.THRESH_BINARY)#buffalo = 127
         # Encontrar contornos
         contornos, _ = cv2.findContours(imagem_binaria, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
         # Criar uma máscara em branco do mesmo tamanho da imagem original
         mask = np.zeros_like(imagem_cinza)
-
         # Desenhar os contornos na máscara
         cv2.drawContours(mask, contornos, -1, (255), -1)  # -1 para desenhar todos os contornos
         mask = cv2.bitwise_not(mask)
-        
     else:
         hsv = cv2.cvtColor(roi_img, cv2.COLOR_BGR2HSV)
         h_min = cv2.getTrackbarPos("(Trace)_H_min", "Trace")
@@ -410,58 +352,47 @@ def get_color_moment(roi_img):
         #hsv_max = np.array([180, 255, 50])
         # 青色領域のマスク
         mask = cv2.inRange(hsv, hsv_min, hsv_max)
-    cv2.imshow("Trace", mask)
+    #cv2.imshow("Trace", mask)
     return get_moment(mask, LINE_AREA_THRESHOLD)
 
+# ラインの位置から左右のモーターに与える回転速度rpmを計算する
+def pid_controller():
+    global x,CAM_WIDTH,MOTOR_L_BASE_SPEED,MOTOR_R_BASE_SPEED
+    motor_left_speed = calculate_speed_left(MOTOR_L_BASE_SPEED,CAM_WIDTH,x)
+    motor_right_speed = calculate_speed_right(MOTOR_R_BASE_SPEED,CAM_WIDTH,x)
 
-def reset_pid_params():
-    eI = 0
-    x = 0
-    x_old = 0
-
+    rpm = (motor_left_speed, motor_right_speed)
+    return rpm
 
 def scheduler():
-    global cur_state, isPausingLinetrace, isDocking, AGV_direction
-    global eI, x, x_old
-    
-    def ajustar_numero(numero):
-        if numero <0:
-            numero += 190
-        else:
-            numero -= 190
-            
-        if numero < -300:
-            return -300
-        elif numero > 300:
-            return 300
-        else:
-            return numero
+    global cur_state, isPausingLinetrace, isDocking, AGV_direction,motor_left,motor_right
+    global x, x_old
     
     if cur_state == State.STATE_IDLE:
         return
     # タイマーの再生成
     t = threading.Timer(RUN_CMD_INTERVAL, scheduler)
     t.start()
-    if isPausingLinetrace:  # マーカー検知時など停止するべき場合
-        reset_pid_params()
-        return
     rpm = pid_controller()  # PIDコントローラに突っ込む
+    if isPausingLinetrace:  # マーカー検知時など停止するべき場合
+        return
     if isDocking:
         rpm = (rpm[0] * 0.5, rpm[1] * 0.5)  # ドッキング時は半分の速度にする
 
     if cur_state == State.STATE_LINE_TRACE:
-        twd.run(rpm[0] * AGV_direction, ajustar_numero(rpm[1] * AGV_direction))  # 速度指令
-
+        #print("LEFT_MOTOR_SPEED",rpm[0])
+        #print("RIGHT_MOTOR_SPEED",rpm[1])
+        motor_left.run_at_velocity(utils.rpm2rad_per_sec(rpm[0]))
+        motor_right.run_at_velocity(utils.rpm2rad_per_sec(rpm[1]))
+        
 
 # トラックバーのコールバック関数は何もしない空の関数
 def nothing(x):
     pass
 
-
 # aruco マーカー
 # aruco マーカーの辞書定義
-dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
-
+dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
 
 # arucoマーカーを検知する
 def aruco_reader(roi_ar):
@@ -493,30 +424,17 @@ if __name__ == '__main__':
     GPIO.setup(BUTTON_RED_PIN_2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(BUTTON_YELLOW_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(BUTTON_GREEN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    #GPIO.setup(BUTTON_REAR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
     # ボタンを押したときのコールバックを登録
     GPIO.add_event_detect(BUTTON_RED_PIN, GPIO.FALLING, callback=red_callback, bouncetime=50)
     GPIO.add_event_detect(BUTTON_RED_PIN_2, GPIO.FALLING, callback=red_callback, bouncetime=50)
     GPIO.add_event_detect(BUTTON_YELLOW_PIN, GPIO.FALLING, callback=yellow_callback, bouncetime=50)
     GPIO.add_event_detect(BUTTON_GREEN_PIN, GPIO.FALLING, callback=green_callback, bouncetime=50)
-    #GPIO.add_event_detect(BUTTON_REAR_PIN, GPIO.FALLING, callback=rear_callback, bouncetime=50)
     set_state(State.STATE_IDLE)  # アイドル状態でスタート
 
     print("キーボードの [s] + Enter または 赤ボタン: ストップ STATE_IDLE")
     print("キーボードの [t] + Enter または 緑ボタン: ライントレース STATE_LINE_TRACE")
     print("キーボードの [d] + Enter :デバッグ用 STATE_DEBUG")
-
-    # 各ウインドウの下に、スライダー＝トラックバーが生成される
-    # 値は整数値 0-255 しか設定できない
-    # スライダーを動かすことにより、値を調整する
-
-    # HSVによるラインの色抽出の調整
-    # H: 色相, S:彩度, V:明度
-    # 以下リンクを見ること
-    # https://algorithm.joho.info/programming/python/opencv-color-detection/
-    # https://www.peko-step.com/html/hsv.html
-    # ※ OpenCVでの H は、0-179 しか受け付けないので、Hは 0-360° 表記の半分にしなければならない
 
     # 画像表示用ウィンドウの生成 なくても動くが、ウィンドウにフォーカスさせてキー入力を受け付けるため必要
     cv2.namedWindow("Main")
@@ -534,74 +452,80 @@ if __name__ == '__main__':
     cv2.createTrackbar("(Trace)_S_min", "Trace", 27, 255, nothing) #64
     cv2.createTrackbar("(Trace)_V_min", "Trace", 0, 255, nothing) #20
 
-    # (b) 赤ラインマーカを使用する場合は必要。赤ライン確認用ウィンドウが必要な場合は以下のコメントアウトを解除
-    cv2.namedWindow("Red")  # なくても動くが、ウィンドウにフォーカスさせてキー入力を受け付けるため必要
-    # 赤ラインのHSV抽出領域設定
-    cv2.createTrackbar("(Red)_H_min_high", "Red", 165, 179, nothing)
-    cv2.createTrackbar("(Red)_H_max_low", "Red", 20, 179, nothing)
-    cv2.createTrackbar("(Red)_S_min", "Red", 64, 255, nothing)
-    cv2.createTrackbar("(Red)_V_min", "Red", 20, 255, nothing)
-
     # 停止条件を検知したカウント数（＝片道周回数になる）
     stop_marker_count = 0
     actionFlag = "停止"  # 停止
     try:
         while True:
             # カメラからフレームをキャプチャする
-            if AGV_direction > 0:
-                ret, frame = capture_front.read()  # capture
-            else:
-                ret, frame = capture_rear.read()  # capture
+            #if AGV_direction > 0:
+            ret, frame = capture_front.read()  # capture
+            #else:
+            #    ret, frame = capture_rear.read()  # capture
             if not ret:
                 break
+            
             image = frame.copy()
-            roi = image[120:170, 0:630]  # [180:230, 0:320] #[95:145, 0:320]
-            roi_u = image[45:95, 0:630]  # [30:80, 0:320] # [45:95, 0:320]
+            roi = image[int((CAM_HEIGHT/2)+1):CAM_HEIGHT-1, 0:630]  # [180:230, 0:320] #[95:145, 0:320]
+            #roi_u = image[45:95, 0:630]  # [30:80, 0:320] # [45:95, 0:320]
             #roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)  # HSV画像
             #roi_u = cv2.cvtColor(roi_u, cv2.COLOR_BGR2HSV)
             img = cv2.medianBlur(roi, 5)
-            img_u = cv2.medianBlur(roi_u, 5)
+            #img_u = cv2.medianBlur(roi_u, 5)
 
             # フレームレートを表示する (frame per seconds)
             tfont = cv2.FONT_HERSHEY_SIMPLEX
             cv2.putText(roi, 'FPS: {:.2f}'.format(calc_frame_rate()),(10, 30), tfont, 1.0, (0, 255, 0), thickness=2)
 
             # ライントレース中の動作フラグ
-            
-
             ## 停止条件は (a) 赤ラインマーカー or (b) arucoマーカー指定id いずれか
 
             # (a) Arucoマーカー検知で停止を行う場合
             roi_ar = image[80:240, 0:320]  # [80:240, 0:320]
             corners, ids = aruco_reader(image)  # ArUcoマーカー検知
-            
+            color = get_color_moment(img)
+            #color_u = get_color_moment(img_u)
             if ids is not None:
-                if 0 == ids[0, 0]:  # 停止マーク
+                if 4 == ids[0, 0]:  # 停止マーク
                     actionFlag = "停止"
                 elif 1 == ids[0, 0]:  # モーターを再インスタンスマーク
                     actionFlag = "再インスタンス"
-                elif 10 == ids[0, 0]:  # 左折マーク
-                    actionFlag = "左折"
-                elif 30 == ids[0, 0]:  # 右折マーク
-                    actionFlag = "右折"
+                elif 2 == ids[0, 0]:  # 左折マーク
+                    if AGV_direction >0:
+                        actionFlag = "左折"
+                    else:
+                        actionFlag = "右折"
+                elif 3 == ids[0, 0]:  # 右折マーク
+                    if AGV_direction >0:
+                        actionFlag = "右折"
+                    else:
+                        actionFlag = "左折"
                 elif 90 == ids[0, 0]:  # 回転180度マーク
                     actionFlag = "回転180"
                 elif 91 == ids[0, 0]:  # 回転270度マーク
                     actionFlag = "回転270"
-                elif 100 == ids[0, 0]:
+                elif 5 == ids[0, 0]:
                     actionFlag = "30秒待ち逆動き"
 
-            if area_sensor.get_distance() <= 20:
-                actionFlag = "停止"
+            if area_sensor.get_distance() <= 80:
+                actionFlag = "一時停止"
 
             if cur_state == State.STATE_LINE_TRACE or cur_state == State.STATE_DEBUG:
                 if actionFlag == "停止":  # 停止マーカーを検知したら、停止して処理
+                    #reset_pid_params()
+                    isPausingLinetrace = True  # ライントレース一時停止
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_R_BASE_SPEED/2) *-1 ))
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED/2 ))
+                    time.sleep(2.4)
+                    set_state(State.STATE_IDLE)
+                    AGV_direction = 1
+                if actionFlag == "一時停止":  # 停止マーカーを検知したら、停止して処理
                     stop_marker_count += 1
                     print("Detected Stop Marker:", stop_marker_count)
-                    reset_pid_params()
+                    #reset_pid_params()
                     isPausingLinetrace = True  # ライントレース一時停止
-                    twd.enable()  # ラインロストで disable 状態になっている場合がある
-                    twd.free(0.5)  # 停止、タイムアウト0.5秒
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(0))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(0))
                     actionFlag = "isResuming"
                     player.set_blocked_move_sound()
                     run_rpm = RUN_BASE_RPM  # 速度を元に戻す
@@ -614,96 +538,77 @@ if __name__ == '__main__':
 
                 elif actionFlag == "左折":
                     print("Detected Left Turn Marker")
-                    x = 0
-                    eI = 0
-                    time.sleep(2)
                     isPausingLinetrace = True  # ライントレース停止
-                    twd.enable()  # ラインロストで disable 状態になっている場合がある
-                    twd.free(0.1)  # 停止,タイムアウト0.5秒
-                    #twd.move_straight(200, 1000 * AGV_direction, 0)  # 直進。マーカー位置によって調整すること。
+
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
                     
-                    twd.run(1 * AGV_direction, 300 * AGV_direction) # como o motor esquerdo esta pesado movimentar normalmente ira faze virar pra a esquerda
-                    time.sleep(2)
-                    #twd.pivot_turn(100, -180 * AGV_direction, 0)  # 90°回転。TWD初期化時、tread を正確に設定していない場合、ズレる。
-                    #twd.stop(0.1)
+                    time.sleep(1.2)
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_L_BASE_SPEED/2) *-1 ))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED/2 ))
+ 
+                    time.sleep(1.2)
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
+
                     actionFlag = ""
                     isPausingLinetrace = False
 
                 elif actionFlag == "右折":
                     print("Detected Right Turn Marker")
-                    x = 0
-                    eI = 0
-                    isPausingLinetrace = False  # ライントレース停止
-                    twd.enable()  # ラインロストで disable 状態になっている場合がある
-                    #twd.free(0.1)  # 停止,タイムアウト0.5秒
-                    twd.move_straight(200, 1000 * AGV_direction, 0)  # 直進。マーカー位置によって調整すること。
-                    twd.pivot_turn(20, 180 * AGV_direction, 3)  # 90°回転。TWD初期化時、tread を正確に設定していない場合、ズレる。
-                    #twd.stop(0.1)
+                    isPausingLinetrace = True  # ライントレース停止
+                    
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
+
+                    time.sleep(1.2)
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_R_BASE_SPEED/2) *-1 ))
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_L_BASE_SPEED/2) ))
+ 
+                    time.sleep(1.2)
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
+
                     actionFlag = ""
+                    isPausingLinetrace = False
 
                 elif actionFlag == "30秒待ち逆動き":
-                    # Do load Action Here
                     print("30秒待ち逆動き")
-                    #reset_pid_params()
-                    #isPausingLinetrace = True  # ライントレース一時停止
-                    #twd.enable()  # ラインロストで disable 状態になっている場合がある
-                    #twd.free(0.5)  # 停止、タイムアウト0.5秒
-                    actionFlag = ""
                     player.set_blocked_move_sound()
+                    isPausingLinetrace = True
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(0))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(0))
+
+                    time.sleep(10)
+                    
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_R_BASE_SPEED/2) *-1 ))
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED/2 ))
+                    time.sleep(2.4)
+                    
+                    motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
+                    motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
+                    
                     AGV_direction = AGV_direction * -1
+                    isPausingLinetrace = False
+                    actionFlag = ""
 
                 elif actionFlag == "再インスタンス":
-                    twd = TWD(port_left, port_right, wheel_d=100.6, tread=306.5, button_event_cb=motor_event_cb)
-
+                    motor_left = usbcontroller.USBController(port_left)
+                    motor_right = usbcontroller.USBController(port_right)
                 else:  # Follow the Blue Brick Road (Line)
-                    color = get_color_moment(img)
-                    color_u = get_color_moment(img_u)
                     isLineExist = False  # ラインが存在する場合、True
                     isLineExist = color[0]
                     lineArea = color[2]
-                    lineArea_u = color_u[2]
-
+                    #lineArea_u = color_u[2]
                     if isLineExist:
-                        lost_count = 0  # ラインロストのカウントをリセット
-                        lost_total_count = 0  # ライントータルロストのカウントをリセット
-                        # print(lineArea_u)
-                        if lineArea > LINE_CROSS_PASS_AREA_THRESHOLD:
-                            pass
-                        else:
-                            if lineArea_u < LINE_UPPER_AREA_THRESHOLD:
-                                run_rpm = RUN_LOWER_RPM * (0.7 + lineArea_u / LINE_UPPER_AREA_THRESHOLD)
-                            else:
-                                run_rpm = RUN_BASE_RPM
-                            isPausingLinetrace = False
-                            x = color[1][0] - 160  # ラインのx位置を更新
-                            twd.enable()
+                        isPausingLinetrace = False
+                        x = color[1][0]
                     else:
-                        lost_count += 1  # ロストしたカウントアップ
-                        if lost_count >= LOST_THRESHOLD:
-                            # 一定回数以上、ラインロスト判定になると、AGVはアイドル状態に戻る
-                            if lost_total_count >= LOST_TOTAL_THRESHOLD:
-                                if cur_state == State.STATE_LINE_TRACE:
-                                    set_state(State.STATE_IDLE)
-                                lost_total_count = 0
-                            else:
-                                # ラインロスト処理
-                                lost_total_count += 1
-                                print("Line not Exist")
-                                #cv2.imwrite("img_linelost.jpg", roi)
-                                isPausingLinetrace = True  # ライントレース停止
-                                twd.free()
-                                print("Back")
-                                # 後退してラインを再発見する。車輪径に応じて調整必要
-                                if cur_state == State.STATE_LINE_TRACE:
-                                    twd.move_straight(STOP_AFTER_RPM, -180 * AGV_direction, 5)
-                                    # 車輪半回転 180°後退、15秒タイムアウトで前進 hsv3:440->510
-                                print("Resume Line Trace")
-                                reset_pid_params()
-                                isPausingLinetrace = False  # ライントレース再開
-            
-            else:
-                __ = get_color_moment(img)
-                ___ = get_color_moment(img_u)
+                        print("Lost Line")
+                        isPausingLinetrace = True
+                        motor_left.run_at_velocity(utils.rpm2rad_per_sec(- MOTOR_L_BASE_SPEED * 0.1 ))
+                        motor_right.run_at_velocity(utils.rpm2rad_per_sec(- MOTOR_R_BASE_SPEED * 0.1 ))
+                        
 
             cv2.imshow("Main", roi)
             # cv2.imshow("Raw", image)
@@ -717,7 +622,7 @@ if __name__ == '__main__':
                 set_state(State.STATE_DEBUG)
             elif key == ord("w"):
                 set_state(State.STATE_MOTOR_REINITIALIZE)
-                twd = TWD(port_left, port_right, wheel_d=100.6, tread=306.5, button_event_cb=motor_event_cb)
+                #twd = TWD(port_left, port_right, wheel_d=100.6, tread=306.5, button_event_cb=motor_event_cb)
             elif key == ord("l"):
                 set_state(State.STATE_IDLE)
                 file_path = filedialog.askopenfilename()
