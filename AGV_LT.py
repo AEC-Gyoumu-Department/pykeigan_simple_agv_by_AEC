@@ -46,7 +46,7 @@ $ sudo apt-get install v4l-utils
 """
 #
 CAM_U1_FRONT_ID = 0  # USBcam1 /dev/video0
-CAM_U1_REAR_ID = 2   # USBcam2 /dev/video1
+#CAM_U1_REAR_ID = 2   # USBcam2 /dev/video1
 CAM_WIDTH = 640
 CAM_HEIGHT = 360
 CAM_FPS = 30
@@ -63,7 +63,7 @@ subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=exposure_auto=1", sh
 subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=exposure_absolute=400", shell=True)
 
 subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=white_balance_temperature_auto=0", shell=True)
-subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=white_balance_temperature=4000", shell=True)
+subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=white_balance_temperature=5000", shell=True)
 
 camera_front = cv2.VideoCapture(CAM_U1_FRONT_ID)
 
@@ -76,15 +76,15 @@ camera_front.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 capture_front = threading_capture(camera_front)
 capture_front.start()
 
-camera_rear = cv2.VideoCapture(CAM_U1_REAR_ID)
-camera_rear.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
-camera_rear.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
-camera_rear.set(cv2.CAP_PROP_FPS, CAM_FPS)
+#camera_rear = cv2.VideoCapture(CAM_U1_REAR_ID)
+#camera_rear.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
+#camera_rear.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
+#camera_rear.set(cv2.CAP_PROP_FPS, CAM_FPS)
 # camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('H', '2', '6', '4'));
-camera_rear.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'));
-camera_rear.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-capture_rear = threading_capture(camera_rear)
-capture_rear.start()
+#camera_rear.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'));
+##camera_rear.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+#capture_rear = threading_capture(camera_rear)
+#capture_rear.start()
 time.sleep(0.5)  # カメラのウォームアップ時間
 # ライントレーサー
 """
@@ -99,8 +99,8 @@ STOP_MARKER_AREA_THRESHOLD = 20000 / 4  # 停止テープマーカーを検知�
 
 RUN_CMD_INTERVAL = 0.1  # 0.1秒ごとに処理を行う
 RUN_BASE_RPM = 300
-MOTOR_L_BASE_SPEED = 180
-MOTOR_R_BASE_SPEED = -300
+MOTOR_L_BASE_SPEED = 300
+MOTOR_R_BASE_SPEED = -180
 RUN_LOWER_RPM = 15
 STOP_AFTER_RPM = 10
 STOP_AFTER_RPM1 = 5
@@ -230,8 +230,8 @@ usb-FTDI_FT230X_Basic_UART_DM00LSSA-if00-port0
 """
 
 # KeiganMotor デバイスアドレス（上記参照）
-port_left = '/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00KX3V-if00-port0'
-port_right = '/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00KNUU-if00-port0'
+port_left = '/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00KNUU-if00-port0'
+port_right = '/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DM00KX3V-if00-port0'
 
 motor_left = usbcontroller.USBController(port_left)
 motor_right = usbcontroller.USBController(port_right)
@@ -332,7 +332,7 @@ def get_color_moment(roi_img):
         # Converter para escala de cinza
         imagem_cinza = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
         # Limiarização
-        _, imagem_binaria = cv2.threshold(imagem_cinza, 10, 255, cv2.THRESH_BINARY)#buffalo = 127
+        _, imagem_binaria = cv2.threshold(imagem_cinza, 40, 255, cv2.THRESH_BINARY)#buffalo = 127
         # Encontrar contornos
         contornos, _ = cv2.findContours(imagem_binaria, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # Criar uma máscara em branco do mesmo tamanho da imagem original
@@ -507,8 +507,9 @@ if __name__ == '__main__':
                 elif 5 == ids[0, 0]:
                     actionFlag = "30秒待ち逆動き"
 
-            if area_sensor.get_distance() <= 80:
-                actionFlag = "一時停止"
+            if area_sensor.get_distance() <= 30:
+                pass
+                #actionFlag = "一時停止"
 
             if cur_state == State.STATE_LINE_TRACE or cur_state == State.STATE_DEBUG:
                 if actionFlag == "停止":  # 停止マーカーを検知したら、停止して処理
@@ -516,7 +517,7 @@ if __name__ == '__main__':
                     isPausingLinetrace = True  # ライントレース一時停止
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_R_BASE_SPEED/2) *-1 ))
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED/2 ))
-                    time.sleep(2.4)
+                    time.sleep(2.8)
                     set_state(State.STATE_IDLE)
                     AGV_direction = 1
                 if actionFlag == "一時停止":  # 停止マーカーを検知したら、停止して処理
@@ -543,11 +544,11 @@ if __name__ == '__main__':
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
                     
-                    time.sleep(1.2)
+                    time.sleep(1.7)
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_L_BASE_SPEED/2) *-1 ))
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED/2 ))
  
-                    time.sleep(1.2)
+                    time.sleep(1.3)
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
 
@@ -561,11 +562,11 @@ if __name__ == '__main__':
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
 
-                    time.sleep(1.2)
+                    time.sleep(1.6)
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_R_BASE_SPEED/2) *-1 ))
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_L_BASE_SPEED/2) ))
  
-                    time.sleep(1.2)
+                    time.sleep(1.3)
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
 
@@ -583,7 +584,7 @@ if __name__ == '__main__':
                     
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec((MOTOR_R_BASE_SPEED/2) *-1 ))
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED/2 ))
-                    time.sleep(2.4)
+                    time.sleep(2.6)
                     
                     motor_left.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_L_BASE_SPEED ))
                     motor_right.run_at_velocity(utils.rpm2rad_per_sec(MOTOR_R_BASE_SPEED ))
@@ -606,10 +607,10 @@ if __name__ == '__main__':
                     else:
                         print("Lost Line")
                         isPausingLinetrace = True
-                        motor_left.run_at_velocity(utils.rpm2rad_per_sec(- MOTOR_L_BASE_SPEED * 0.1 ))
-                        motor_right.run_at_velocity(utils.rpm2rad_per_sec(- MOTOR_R_BASE_SPEED * 0.1 ))
-                        
-
+                        motor_left.run_at_velocity(utils.rpm2rad_per_sec(- MOTOR_L_BASE_SPEED *0.1 ))
+                        motor_right.run_at_velocity(utils.rpm2rad_per_sec(- MOTOR_R_BASE_SPEED *0.1 ))
+                        time.sleep(5)
+                                                
             cv2.imshow("Main", roi)
             # cv2.imshow("Raw", image)
             key = cv2.waitKey(1) & 0xFF
