@@ -6,8 +6,6 @@ Created on Dec 14 2021
 Modified on Mar 01 2024
 @Contributor: Ichikawa Eisei
 """
-
-# import the necessary packages
 import time
 import threading  # タイマー用 SignalライブラリがOpenCVと一緒に使えないため
 import cv2  
@@ -47,9 +45,6 @@ $ sudo apt-get install v4l-utils
 #
 CAM_U1_FRONT_ID = 0  # USBcam1 /dev/video0
 #CAM_U1_REAR_ID = 2   # USBcam2 /dev/video1
-CAM_WIDTH = 640
-CAM_HEIGHT = 360
-CAM_FPS = 30
 
 # フレームレート計算用
 tm = cv2.TickMeter()
@@ -58,29 +53,17 @@ tm.start()
 count = 0
 max_count = 10
 fps = 0
-#Set disable auto exposure time and set that to 400
 camera_front = cv2.VideoCapture(CAM_U1_FRONT_ID)
-
-camera_front.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
-camera_front.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
-camera_front.set(cv2.CAP_PROP_FPS, CAM_FPS)
-# camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('H', '2', '6', '4'));
-camera_front.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'));
 camera_front.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 capture_front = threading_capture(camera_front)
 capture_front.start()
 
 #camera_rear = cv2.VideoCapture(CAM_U1_REAR_ID)
-#camera_rear.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
-#camera_rear.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
-#camera_rear.set(cv2.CAP_PROP_FPS, CAM_FPS)
-# camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('H', '2', '6', '4'));
-#camera_rear.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'));
-##camera_rear.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+#camera_rear.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 #capture_rear = threading_capture(camera_rear)
 #capture_rear.start()
-time.sleep(0.5)  # カメラのウォームアップ時間
-# ライントレーサー
+time.sleep(0.5)
+
 """
 トラックバー（Mainウインドウ下のスライダー）により決定される、
 HSV値の範囲の色をラインとして認識する
@@ -90,6 +73,8 @@ LINE_AREA_THRESHOLD = 3500 / 4  # ライン検知用の面積の閾値
 LINE_CROSS_PASS_AREA_THRESHOLD = 20000 / 4  # ラインを横切った場合に前回のライン位置を採用するための面積の閾値
 LINE_UPPER_AREA_THRESHOLD = 5500 / 4
 STOP_MARKER_AREA_THRESHOLD = 20000 / 4  # 停止テープマーカーを検知するための面積の閾値（※テープ, arucoマーカーではない）
+
+
 
 RUN_CMD_INTERVAL = 0.1  # 0.1秒ごとに処理を行う
 RUN_BASE_RPM = 300
