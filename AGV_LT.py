@@ -328,7 +328,7 @@ def get_color_moment(roi_img):
         # Limiarização
         _, imagem_binaria = cv2.threshold(imagem_cinza, 40, 255, cv2.THRESH_BINARY)#buffalo = 127
         # Encontrar contornos
-        contornos, _ = cv2.findContours(imagem_binaria, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contornos, _ = cv2.findContours(imagem_binaria, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         # Criar uma máscara em branco do mesmo tamanho da imagem original
         mask = np.zeros_like(imagem_cinza)
         # Desenhar os contornos na máscara
