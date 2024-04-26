@@ -59,12 +59,6 @@ count = 0
 max_count = 10
 fps = 0
 #Set disable auto exposure time and set that to 400
-subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=exposure_auto=1", shell=True)
-subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=exposure_absolute=400", shell=True)
-
-subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=white_balance_temperature_auto=0", shell=True)
-subprocess.check_output("v4l2-ctl -d /dev/video0 --set-ctrl=white_balance_temperature=5000", shell=True)
-
 camera_front = cv2.VideoCapture(CAM_U1_FRONT_ID)
 
 camera_front.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
