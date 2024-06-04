@@ -20,54 +20,34 @@ This approach will enable the AGV to navigate while considering the positions of
 # 必要条件
 ## ハードウェア
 - Raspberry Pi 3B+, 3A+ または 4B（4Bの場合はUSBハブ必須）
-- PiCamera または USBカメラ
-    - https://picamera.readthedocs.io/
-- KeiganMotor 駆動輪 2個分
-- AGVフレーム、キャスターなど（5kg 未満推奨）
+- USBカメラ
+- KeiganMotor 駆動輪 2個分[0.5N]
+- AGVフレーム、キャスターなど（20kg 未満推奨）
 
 ### USBカメラ
-以下の機種を推奨します。
-- Buffalo BSW500MBK（広角120°モデル）
+- 現在にELPモジュールカメラ
 
 #### カメラの設置例
-例えば、AGV前方に、カメラレンズ 床面からの高さ 125mm 斜め45°下を投射する形で設置します。
-
-カメラの画角により異なりますので、調整して下さい。
+未設定
 
 ### KeiganMotor 
 以下を使用します。
 - KeiganMotor KM-1S-M6829TS ホイールキット
     - https://keigan-motor.com/km-1s/
 
-- ファームウェア を ver 2.73B 以降にアップデートして下さい。
-    - https://docs.keigan-motor.com/firmware/download
-    
-- KeiganMotor が走行中に再起動し、停止する問題が生じる場合
-    - ver 2.39 ファームウェアを使用することで、安定する場合があります。
-
-
 ## ソフトウェア要件
 - Raspberry Pi OS
-- Python >= 3.5 (recommended) or 2.7
+- Python >= 3.5
 - pykeigan_motor >= 2.3.1
     - https://github.com/keigan-motor/pykeigan_motor
 - OpenCV 
     - opencv-contrib-python 4.3
 
-
 ### Raspberry Pi OS 
-バージョンは以下を対象とします。
 - Distributor ID: Raspbian
 - Description:    Raspbian GNU/Linux 10 (buster)
 - Release:        10
 - Codename:       buster
-
-# バージョン履歴
-- 2021/12/23 ver. 1.1.1 Latest
-    - systemd による自動起動の方法を変更（シェル→python）
-    - USBカメラ使用時の動作、検知性能の改善
-- 2021/12/18 ver. 1.1.0
-    - USBカメラ を追加
 
 # 準備
 ## 画像認識のためのマーカー
