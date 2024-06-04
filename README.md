@@ -16,31 +16,6 @@ This approach will enable the AGV to navigate while considering the positions of
 - Aruco Mapping
 - Emergency Stop Button
 
-# はじめに
-KeiganMotor，Raspberry Pi, USBカメラ または PiCamera, を使用して、USBモバイルバッテリーで動作するライントレーサーAGVを作ることができます。
-
-青色のテープをライントレースします。
-
-arucoマーカーや赤色のテープを検知し、停止などを実行することができます。
-
-KeiganMotor を追加することにより、搬送物の積み下ろしなどの応用が可能です。
-
-![AGV上部連携](/img/AGVLoader.gif) 
-
-青色または青色に近い床の場合は、動作しない場合があります。
-
-その場合、黄色のラインテープで動作する場合があります。（HSV値の調整が必要です）
-
-# KeiganAGV Kit
-本AGVシステムを製作するために必要なパーツをキット化したものです。
-動作に必要なソフトウェアはセットアップされています。
-
-![KeiganAGV10LU](/img/AGVKit_1.jpg) 
-
-- 製品ページ: https://keigan-motor.com/agvtolu/
-- 製品サイト: https://keigan-motor.com
-- ドキュメント: https://docs.keigan-motor.com
-
 
 # 必要条件
 ## ハードウェア
