@@ -1,3 +1,6 @@
+Simple line tracer AGV by KeiganMotor
+==============================================
+
 # First of all by AEC-業務改革室
 This project is an iteration of the Keigan Simple AGV. In this version, we will integrate the HC-SR04 sonar sensor to enhance the AGV's object detection capabilities.
 Additionally, we will incorporate a sound module to enable the AGV to emit sound effects corresponding to its actions.
@@ -6,19 +9,13 @@ This approach will enable the AGV to navigate while considering the positions of
 
   Thanks, KEIGAN to provide a free API to use your Motors and provide this Simple AGV.
   We hope that our collaboration can serve as inspiration for new products and improvements.
-  ### Load test using 1 motor
-  ![モーター負荷容量テスト](/img/02-ミニプロトタイプ-1_Motor_02.gif) 
 
 ## ADDED
 - Area Sensor
 - Sound Reproduce Capacity
 - Aruco Mapping
 - Emergency Stop Button
-- Save/load settings
 
-
-Simple line tracer AGV by KeiganMotor
-==============================================
 # はじめに
 KeiganMotor，Raspberry Pi, USBカメラ または PiCamera, を使用して、USBモバイルバッテリーで動作するライントレーサーAGVを作ることができます。
 
@@ -514,8 +511,9 @@ KeiganMotor での AGV開発を簡単にするためのライブラリです。
 メインファイルと同じフォルダに、twd.py を置いて下さい。
 
 ## インポート
+
 ```python
-from twd import TWD
+from steering_control import TWD
 ```
 
 ## 初期化
