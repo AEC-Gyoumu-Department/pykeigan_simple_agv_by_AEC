@@ -52,17 +52,7 @@ This approach will enable the AGV to navigate while considering the positions of
 # 準備
 ## 画像認識のためのマーカー
 ### 1. ラインテープ
-#### ラインテープの貼り方
-ライントレース用のラインは、50mm幅の、青ラインテープを使います。
-停止用の赤テープも含めて、monotaro等で購入可能です。
-- グローブ社 ラインテープ 50mm×33m
-    - https://www.monotaro.com/g/01259483/
 
-引っ張りながら貼ることにより、曲線も綺麗に貼ることができます。
-曲線の場合は、500mm 以上の半径 R を取ってください。
-
-
-***停止用のテープは、青ラインに対して垂直に、400mm 以上の長さを貼ること。***
 
 ### 2. aruco マーカー
 オープンソースの2次元マーカーです。
@@ -70,40 +60,25 @@ OpenCV の contrib パッケージに含まれます。
 以下のサイトから印刷することが可能です。
 - https://chev.me/arucogen/
 
-
-![stop to see aruco marker](/img/aruco.jpg) 
-
-aruco マーカーの ID によって、動作を変更するサンプルは、以下を参照下さい。
-https://github.com/keigan-motor/pykeigan_simple_agv/tree/cd_dev_0725_picam
-config_test.ini に定義されたアクションを実行します。
-
 #### config_test.ini アクションの例
 [aruco_id_command]
-0 = idle: アイドル状態にする
-1 = placing_task: ラズパイのGPIOを用いる特定のタスク
-2 = turnL: 左に90度旋回
-3 = pass
-4 = pass
-5 = turnL: 左に90度旋回
-6 = picking_task: ラズパイのGPIOを用いる特定のタスク
-7 = pass
-8 = pass
-9 = idle: アイドル状態にする
-10 = pause: 一時停止
-
-#### 注意点
-- 床面に貼る場合、上から透明の保護テープを貼ることを推奨します。
-- 60mm～100mm 角のサイズを推奨しますが、検知失敗する場合はサイズ調整やカメラの高さ変更を実施して下さい。
+0 = 
+1 = 
+2 = 
+3 =
+4 =
+5 =
+6 = 
+7 = 
+8 = 
+9 = 
+10 = 
 
 ## PC 側の準備
 ### VNC Viewer のダウンロード
 お使いのPCに、VNC Viewer をダウンロードします。
 
-## Raspberry Pi 側の準備
-KeiganAGV Kit では、本「準備」に含まれるソフトウェアはSDカードに全てセットアップ済みです。
-
 Wi-Fi の設定は必要となります。
-
 ### インターフェイス機器の接続
 Raspberry Pi に HDMIディスプレイ、マウス・キーボード を接続します。
 VNC　Viewer でリモート接続後は、不要です。
@@ -113,7 +88,6 @@ Raspberry Pi デスクトップ画面のメニューボタンから「設定」�
 
 「インターフェイス」タブから、以下の「有効」を選択し、[OK] をクリックします。
 
-- カメラ（PiCameraの場合のみ）
 - VNC
 
 
@@ -127,42 +101,10 @@ Raspberry Pi デスクトップ画面のメニューボタンから「設定」�
 
 ### OpenCV のインストール
 バージョンは 4.1.0.25 を指定して下さい。
-
-Raspberry Pi OS のバージョンは上記参照下さい。
-
 ```
 pip3 install opencv-contrib-python==4.1.0.25
 ```
 上記だけで cv2（OpenCV）が動作しない場合、以下を全てインストールします。
-
-***必ず 1個ずつ行うこと。一気にコピペしてやると[Y]入力のところで失敗します。***
-
-```
-sudo apt install libhdf5-103
-sudo apt install libcblas
-sudo apt install libatlas-base-dev
-sudo apt install libhdf5-100
-sudo apt install libharfbuzz0b
-sudo apt install libwebp6
-sudo apt install libjasper1
-sudo apt install libilmbase12
-sudo apt install libopenexr22
-sudo apt install libgstreamer1.0-0
-sudo apt install libavcodec-extra57
-sudo apt install libavformat57
-sudo apt install libswscale4
-sudo apt install libgtk-3
-sudo apt install libgtk-3-0
-sudo apt install libqtgui4
-sudo apt install libqt4-test
-```
-[Y/n] か聞かれたら、Y+Enter を押す。ImportError が出る場合、
-該当するライブラリをコピペしてもう一度インストールする。
-
-（オプション）OpenCVのhighguiモジュールに必要なライブラリであるGTKをインストールする方法。
-```
-sudo apt-get install libgtk2.0-dev
-```
 
 ### KeiganMotor Python ライブラリのインストール
 pykeigan_motor 2.3.1 以降をご使用下さい。
@@ -171,31 +113,6 @@ pykeigan_motor 2.3.1 以降をご使用下さい。
 ```
 pip3 install pykeigan_motor
 ```
-
-### プログラムのダウンロード
-本リポジトリのzipファイルをダウンロードし、解凍します。KeiganAGVKitでは、デスクトップに予め設置しています。
-
-## デバイスの準備
-
-### カメラのフォーカス合わせ
-予め PiCamera または USBカメラ のフォーカスを合わせて下さい。
-- AGVKit 付属の USBカメラは調整できません。
-
-レンズ鏡筒部を手で回すことにより調整できる場合があります。
-
-フォーカスが合っていない場合、脱線の原因となります。
-
-カメラ単体の確認は、device_test フォルダ内の、usbcamera_test.py または picamera_test.py を実行します。
-```
-python3 usbcamera_test.py
-```
-または
-```
-python3 picamera_test.py
-```
-
-実際にラインを撮影し、動画が鮮明になるように調整して下さい。
-
 ### KeiganMotor の接続とデバイスアドレス
 Python から KeiganMotor を USB経由でコントロールするためには、デバイスアドレス（デバイスファイル名）の指定が必要です。
 
